@@ -2,76 +2,104 @@
 #include <ESP8266HTTPClient.h>
 #include <WiFiClientSecureBearSSL.h>
 
-const char* ssid     = "True Enjoy";
-const char* password = "enjoy7777777777";
+// const char* ssid     = "True Enjoy";
+// const char* password = "enjoy7777777777";
 
-// Use HTTP instead of HTTPS for testing
-const char* serverName = "http://netespdatalog00.free.nf/post-esp-data.php";
+// Update HOST URL here
 
-String apiKeyValue = "tPmAT5Ab3j7F9";
+#define HOST "netespdatalog00.free.nf"          // Enter HOST URL without "http:// "  and "/" at the end of URL
+
+#define WIFI_SSID "True Enjoy"            // WIFI SSID here                                   
+#define WIFI_PASSWORD "enjoy7777777777"        // WIFI password here
+
+// Declare global variables which will be uploaded to server
+
+int val = 1;
+int val2 = 99;
+
+String sendval, sendval2, postData;
+
 
 void setup() {
-  Serial.begin(115200);
+
+     
+Serial.begin(115200); 
+Serial.println("Communication Started \n\n");  
+delay(1000);
   
-  WiFi.begin(ssid, password);
-  Serial.println("Connecting");
-  while(WiFi.status() != WL_CONNECTED) { 
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.print("Connected to WiFi network with IP Address: ");
-  Serial.println(WiFi.localIP());
+
+pinMode(LED_BUILTIN, OUTPUT);     // initialize built in led on the board
+ 
+
+
+WiFi.mode(WIFI_STA);           
+WiFi.begin(WIFI_SSID, WIFI_PASSWORD);                                     //try to connect with wifi
+Serial.print("Connecting to ");
+Serial.print(WIFI_SSID);
+while (WiFi.status() != WL_CONNECTED) 
+{ Serial.print(".");
+    delay(500); }
+
+Serial.println();
+Serial.print("Connected to ");
+Serial.println(WIFI_SSID);
+Serial.print("IP Address is : ");
+Serial.println(WiFi.localIP());    //print local IP address
+
+delay(30);
 }
 
-void loop() {
-  if(WiFi.status() == WL_CONNECTED){
-    WiFiClient client;
-    HTTPClient http;
-    
-    Serial.print("Connecting to ");
-    Serial.println(serverName);
-    
-    // Your Domain name with URL path or IP address with path
-    if (http.begin(client, serverName)) {
-      Serial.println("HTTP connection established");
-      
-      // Specify content-type header
-      http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-      
-      // Prepare your HTTP POST request data
-      String httpRequestData = "api_key=" + apiKeyValue + "&sensor=" + "Test01"
-                            + "&location=" + "Test02" + "&value1=" + String(333)
-                            + "&value2=" + String(444) + "&value3=" + String(555);
-      Serial.print("httpRequestData: ");
-      Serial.println(httpRequestData);
-      
-      // Send HTTP POST request
-      int httpResponseCode = http.POST(httpRequestData);
-      
-      if (httpResponseCode > 0) {
-        Serial.print("HTTP Response code: ");
-        Serial.println(httpResponseCode);
-        String payload = http.getString();
-        Serial.println("Received payload:");
-        Serial.println(payload);
-      }
-      else {
-        Serial.print("Error code: ");
-        Serial.println(httpResponseCode);
-        Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpResponseCode).c_str());
-      }
-      
-      // Free resources
-      http.end();
-    }
-    else {
-      Serial.println("Unable to connect to the server");
-    }
-  }
-  else {
-    Serial.println("WiFi Disconnected");
-  }
-  //Send an HTTP POST request every 30 seconds
-  delay(30000);  
+
+
+void loop() { 
+
+HTTPClient http;    // http object of class HTTPClient
+WiFiClient wclient; // wclient object of class WiFiClient   
+
+
+// Convert integer variables to string
+sendval = String(val);  
+sendval2 = String(val2);   
+
+ 
+postData = "sendval=" + sendval + "&sendval2=" + sendval2;
+
+// We can post values to PHP files as  example.com/dbwrite.php?name1=val1&name2=val2&name3=val3
+// Hence created variable postDAta and stored our variables in it in desired format
+// For more detials, refer:- https://www.tutorialspoint.com/php/php_get_post.htm
+
+// Update Host URL here:-  
+  
+http.begin(wclient, "http://netespdatalog00.free.nf/dbwrite.php");              // Connect to host where MySQL databse is hosted
+http.addHeader("Content-Type", "application/x-www-form-urlencoded");            //Specify content-type header
+
+  
+ 
+int httpCode = http.POST(postData);   // Send POST request to php file and store server response code in variable named httpCode
+Serial.println("Values are, sendval = " + sendval + " and sendval2 = "+sendval2 );
+
+
+// if connection eatablished then do this
+if (httpCode == 200) { Serial.println("Values uploaded successfully."); Serial.println(httpCode); 
+String webpage = http.getString();    // Get html webpage output and store it in a string
+Serial.println(webpage + "\n"); 
+}
+
+// if failed to connect then return and restart
+
+else { 
+  Serial.println(httpCode); 
+  Serial.println("Failed to upload values. \n"); 
+  http.end(); 
+  return; }
+
+
+delay(3000); 
+digitalWrite(LED_BUILTIN, LOW);
+delay(3000);
+digitalWrite(LED_BUILTIN, HIGH);
+
+val+=1; val2+=10; // Incrementing value of variables
+
+
 }

@@ -1,105 +1,88 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-#include <WiFiClientSecureBearSSL.h>
+/*************************************************************************************************
+ *  Created By: Tauseef Ahmad
+ *  Created On: 3 April, 2023
+ *  
+ *  YouTube Video: https://youtu.be/VEN5kgjEuh8
+ *  My Channel: https://www.youtube.com/channel/UCOXYfOHgu-C-UfGyDcu5sYw/
+ *  
+ *********************************************************************************************
+ *  Preferences--> Aditional boards Manager URLs : 
+ *  For ESP8266:
+ *  http://arduino.esp8266.com/stable/package_esp8266com_index.json
+ ***********************************************************************************************/
 
-// const char* ssid     = "True Enjoy";
-// const char* password = "enjoy7777777777";
+#include <Arduino.h>
+#include <ESP8266WiFi.h> 
+#include <ESP8266HTTPClient.h> 
+WiFiClient client;
+HTTPClient http;
 
-// Update HOST URL here
 
-#define HOST "netespdatalog00.free.nf"          // Enter HOST URL without "http:// "  and "/" at the end of URL
+String URL = "http://192.168.1.57/esp8266/test.php";
 
-#define WIFI_SSID "True Enjoy"            // WIFI SSID here                                   
-#define WIFI_PASSWORD "enjoy7777777777"        // WIFI password here
+const char* ssid = "True Enjoy"; 
+const char* password = "enjoy7777777777"; 
 
-// Declare global variables which will be uploaded to server
+int temperature = 29; 
+int humidity = 99;
 
-int val = 1;
-int val2 = 99;
-
-String sendval, sendval2, postData;
-
+void connectWiFi();
 
 void setup() {
-
-     
-Serial.begin(115200); 
-Serial.println("Communication Started \n\n");  
-delay(1000);
-  
-
-pinMode(LED_BUILTIN, OUTPUT);     // initialize built in led on the board
- 
-
-
-WiFi.mode(WIFI_STA);           
-WiFi.begin(WIFI_SSID, WIFI_PASSWORD);                                     //try to connect with wifi
-Serial.print("Connecting to ");
-Serial.print(WIFI_SSID);
-while (WiFi.status() != WL_CONNECTED) 
-{ Serial.print(".");
-    delay(500); }
-
-Serial.println();
-Serial.print("Connected to ");
-Serial.println(WIFI_SSID);
-Serial.print("IP Address is : ");
-Serial.println(WiFi.localIP());    //print local IP address
-
-delay(30);
+  Serial.begin(115200); 
+  connectWiFi();
 }
 
+void loop() {
+  if(WiFi.status() != WL_CONNECTED) { 
+    connectWiFi();
+  }
 
+  String postData = "temperature=" + String(temperature) + "&humidity=" + String(humidity); 
 
-void loop() { 
-
-HTTPClient http;    // http object of class HTTPClient
-WiFiClient wclient; // wclient object of class WiFiClient   
-
-
-// Convert integer variables to string
-sendval = String(val);  
-sendval2 = String(val2);   
-
- 
-postData = "sendval=" + sendval + "&sendval2=" + sendval2;
-
-// We can post values to PHP files as  example.com/dbwrite.php?name1=val1&name2=val2&name3=val3
-// Hence created variable postDAta and stored our variables in it in desired format
-// For more detials, refer:- https://www.tutorialspoint.com/php/php_get_post.htm
-
-// Update Host URL here:-  
+  HTTPClient http; 
+  http.begin(client, URL);
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded"); 
   
-http.begin(wclient, "http://netespdatalog00.free.nf/dbwrite.php");              // Connect to host where MySQL databse is hosted
-http.addHeader("Content-Type", "application/x-www-form-urlencoded");            //Specify content-type header
-
+  int httpCode = http.POST(postData); 
+  String payload = ""; // Initialize payload to an empty string
   
- 
-int httpCode = http.POST(postData);   // Send POST request to php file and store server response code in variable named httpCode
-Serial.println("Values are, sendval = " + sendval + " and sendval2 = "+sendval2 );
-
-
-// if connection eatablished then do this
-if (httpCode == 200) { Serial.println("Values uploaded successfully."); Serial.println(httpCode); 
-String webpage = http.getString();    // Get html webpage output and store it in a string
-Serial.println(webpage + "\n"); 
+  if(httpCode > 0) {
+    if(httpCode == HTTP_CODE_OK) {
+      payload = http.getString();
+      Serial.println(payload);
+    } else {
+      Serial.printf("[HTTP] POST... code: %d\n", httpCode);
+    }
+  } else {
+    Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  }
+  
+  http.end();  // Close connection
+  
+  Serial.print("URL : "); Serial.println(URL); 
+  Serial.print("Data: "); Serial.println(postData); 
+  Serial.print("httpCode: "); Serial.println(httpCode); 
+  Serial.print("payload : "); Serial.println(payload); 
+  Serial.println("--------------------------------------------------");
+  
+  delay(10000); // Wait for 10 seconds before sending the next data
 }
 
-// if failed to connect then return and restart
-
-else { 
-  Serial.println(httpCode); 
-  Serial.println("Failed to upload values. \n"); 
-  http.end(); 
-  return; }
-
-
-delay(3000); 
-digitalWrite(LED_BUILTIN, LOW);
-delay(3000);
-digitalWrite(LED_BUILTIN, HIGH);
-
-val+=1; val2+=10; // Incrementing value of variables
-
-
+void connectWiFi() {
+  WiFi.mode(WIFI_OFF);
+  delay(1000);
+  //This line hides the viewing of ESP as wifi hotspot
+  WiFi.mode(WIFI_STA);
+  
+  WiFi.begin(ssid, password);
+  Serial.println("Connecting to WiFi");
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+    
+  Serial.print("connected to : "); Serial.println(ssid);
+  Serial.print("IP address: "); Serial.println(WiFi.localIP());
 }
